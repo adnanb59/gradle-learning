@@ -1,0 +1,216 @@
+import org.apache.commons.codec.binary.Base64
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'commons-codec', name: 'commons-codec', version: '1.2'
+    }
+}
+
+plugins {
+    id "base"
+}
+
+// Set description of Gradle project
+
+description = "A learning Gradle build"
+version = "0.1.0"
+
+// Defining the default tasks (in case tasks aren't specified)
+defaultTasks 'clean', 'run'
+
+/*** Initial tasks using base plugin **/
+
+task copy(type: Copy, group: "Custom", description: "Copy sources to dest") {
+    from "src"
+    into "dest"
+}
+
+task zip(type: Zip, group: "Archive", description: "Archives sources in a zip") {
+    from "src"
+    setArchiveName "basic-demo-0.1.0.zip"
+}
+
+/*** Simple tasks to show tasks are code ***/
+
+// Hello world task
+
+task hello {
+    doLast {
+        println 'WHAT WHAT! YOOOOOO!'
+    }
+}
+
+task upper {
+    doLast {
+        String someString = 'Adnan'
+        println "Original Top One: $someString"
+        println "Upper case: ${someString.toUpperCase()}"
+    }
+}
+
+// Show loop feature
+
+task count {
+    doLast {
+        4.times { print "$it, " }
+    }
+}
+
+/*** Task dependencies ***/
+
+task intro {
+    dependsOn hello
+    doLast {
+        println "It's ya boy!!!!"
+    }
+}
+
+// Set up dependency before declaring task (can't use shortcut notation)
+
+task taskX {
+    dependsOn 'taskY'
+    doLast {
+        println 'taskX (depends on taskY)'
+    }
+}
+
+task taskY {
+    doLast {
+        println 'taskY'
+    }
+}
+
+/*** Dynamic tasks ***/
+
+4.times { counter ->
+    task "task$counter" {
+        doLast {
+            println "I'm task number $counter"
+        }
+    }
+}
+
+task0.dependsOn task2, task3 // Manipulate existing tasks
+
+// Manipulate tasks via API
+
+task earth {
+    doLast {
+        println 'Hello Earth'
+    }
+}
+
+earth.doFirst {
+    println 'Hello Venus'
+}
+
+// Use of configure vs. direct shortcut notation (like above)
+
+earth.configure {
+    doLast {
+        println "Hello Mars, greetings from the $earth.name task."
+    }
+}
+
+earth.configure {
+    doFirst {
+        println 'Hello Jupiter'
+    }
+}
+
+/*** Extra task properties ***/
+
+task myTask {
+    ext.myProperty = "this is MY property"
+}
+
+task printTaskProperties {
+    doLast {
+        println myTask.myProperty
+    }
+}
+
+/*** Using methods ***/
+
+task checksum {
+    doLast {
+        // directory DNE, don't run
+        fileList('./antLoadfileResources').each { File file ->
+            ant.checksum(file: file, property: "cs_$file.name")
+            println "$file.name Checksum: ${ant.properties["cs_$file.name"]}"
+        }
+    }
+}
+
+task loadfile {
+    doLast {
+        // directory DNE, don't run
+        fileList('./antLoadfileResources').each { File file ->
+            ant.loadfile(srcFile: file, property: file.name)
+            println "I'm fond of $file.name"
+        }
+    }
+}
+
+// Method being referenced by tasks
+File[] fileList(String dir) {
+    file(dir).listFiles({file -> file.isFile() } as FileFilter).sort()
+}
+
+/*** For default tasks ***/
+
+task clean {
+    doLast {
+        println 'Default Cleaning!'
+    }
+}
+
+task run {
+    doLast {
+        println 'Default Running!'
+    }
+}
+
+task other {
+    doLast {
+        println "I'm not a default task!"
+    }
+}
+
+/*** Configure by DAG
+     Gradle knows the tasks to be executed and you can use this info 
+     to check for a specific task (and do something accordingly)
+***/
+
+task distribution {
+    doLast {
+        println "We build the zip with version=$version"
+    }
+}
+
+task release {
+    dependsOn 'distribution'
+    doLast {
+        println 'We release now'
+    }
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    if (taskGraph.hasTask(":release")) {
+        version = '1.0'
+    } else {
+        version = '1.0-SNAPSHOT'
+    }
+}
+
+// Use external dependency, imported through maven
+
+task encode {
+    doLast {
+        def byte[] encodedString = new Base64().encode('hello world\n'.getBytes())
+        println new String(encodedString)
+    }
+}
